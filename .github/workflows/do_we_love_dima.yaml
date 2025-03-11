@@ -5,6 +5,7 @@ on:
 
 jobs:
   example-job:
+    name: Do we love Dima?
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
