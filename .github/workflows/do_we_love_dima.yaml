@@ -1,0 +1,17 @@
+name: Do we love Dima?
+
+on: 
+  push:
+    branches:
+      - main
+
+jobs:
+  example-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Show love for Dima
+        run: |
+          echo "Yes, we love Dima!"
