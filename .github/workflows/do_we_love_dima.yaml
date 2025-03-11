@@ -1,9 +1,7 @@
 name: Do we love Dima?
 
 on: 
-  push:
-    branches:
-      - main
+  push
 
 jobs:
   example-job:
