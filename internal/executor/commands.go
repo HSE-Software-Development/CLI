@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"os"
 	"io"
+	"fmt"
+	"strings"
 )
 
 type commands map[string]func(*bytes.Buffer) (*bytes.Buffer, error)
@@ -43,8 +45,30 @@ func exit(_ *bytes.Buffer) (*bytes.Buffer, error) {
 }
 
 func pwd(b *bytes.Buffer) (*bytes.Buffer, error) {
-	return nil, nil
+	dir, err := os.Getwd()
+    if err != nil {
+        return nil, err
+    }
+    b.Reset()
+    b.WriteString(dir)
+    return b, nil
 }
 func wc(b *bytes.Buffer) (*bytes.Buffer, error) {
-	return nil, nil
+	content := b.String()
+	b, err := cat(b)
+	if err == nil {
+		content = b.String()
+	}
+    lines := strings.Count(content, "\n") 
+    if len(content) > 0 && !strings.HasSuffix(content, "\n") {
+        lines++ 
+    }
+    words := len(strings.Fields(content)) 
+    characters := len(content)            
+	result := fmt.Sprintf("%d %d %d\n", lines, words, characters)
+
+    b.Reset()
+    b.WriteString(result)
+    return b, nil
+
 }
