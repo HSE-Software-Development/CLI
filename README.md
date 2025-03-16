@@ -16,5 +16,6 @@ chmod +x scripts/run.sh
 scripts\build.bat
 
 #Run
-scripts\run.bat
+#scripts\run.bat
+.\bin\cli-app.exe
 ```
