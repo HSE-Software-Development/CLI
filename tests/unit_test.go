@@ -15,7 +15,7 @@ func TestPwdCommand(t *testing.T) {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 	expected, _ := os.Getwd()
-	if output.String() != expected+"\n" {
+	if output.String() != expected {
 		t.Errorf("Expected '%s', got '%s'", expected, output.String())
 	}
 }
