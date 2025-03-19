@@ -36,6 +36,16 @@ func cat(b *bytes.Buffer) (*bytes.Buffer, error) {
 }
 
 func echo(b *bytes.Buffer) (*bytes.Buffer, error) {
+	content := b.String()
+	if content[0] == '"' {
+		content = content[1:len(content) - 1]
+	}
+	if content[0] == '\'' {
+		content = content[1:len(content) - 1]
+		content = strings.ReplaceAll(content, "\\n", "\n")
+	}
+	b.Reset()
+	b.WriteString(content)
 	return b, nil
 }
 
@@ -55,17 +65,32 @@ func pwd(b *bytes.Buffer) (*bytes.Buffer, error) {
 }
 func wc(b *bytes.Buffer) (*bytes.Buffer, error) {
 	content := b.String()
-	b, err := cat(b)
-	if err == nil {
-		content = b.String()
+	if len(content) == 0 {
+		b.WriteString("0 0 0")
+		return b, nil
 	}
+	file, err := os.Open(content)
+	if err == nil {
+		defer file.Close()
+		data, err := io.ReadAll(file)
+		if err != nil {
+			return nil, err
+		}
+		content = string(data)
+	} else {
+		if content[0] == '"' || content[0] == '\'' {
+			content = content[1:len(content) - 1]
+			content = strings.ReplaceAll(content, "\\n", "\n")
+		}
+	}
+	
     lines := strings.Count(content, "\n") 
     if len(content) > 0 && !strings.HasSuffix(content, "\n") {
         lines++ 
     }
     words := len(strings.Fields(content)) 
     characters := len(content)            
-	result := fmt.Sprintf("%d %d %d\n", lines, words, characters)
+	result := fmt.Sprintf("%d %d %d", lines, words, characters)
 
     b.Reset()
     b.WriteString(result)

@@ -1,13 +1,10 @@
 package main
 
 import (
-	"CLI/internal/executor"
-	"bufio"
-	"bytes"
+	"CLI/internal/handler"
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 )
 
@@ -20,30 +17,6 @@ func main() {
         fmt.Println("\nexit:", sig)
         os.Exit(0) 
     }()
-
-	reader := bufio.NewReader(os.Stdin)
-	exec := executor.NewExecutor()
-
-	for {
-        fmt.Print("\n>>> ")
-        input, _ := reader.ReadString('\n')
-
-		input = input[: len(input) - 1]
-		words := strings.SplitN(input, " ", 2)
-		var b *bytes.Buffer
-		
-		if len(words) > 1 {
-			b = bytes.NewBuffer([]byte(words[1]))
-		} else {
-			b = bytes.NewBuffer(make([]byte, 0))
-		}
-        res, err := exec.Execute(words[0], b)
-		if err == nil {
-			fmt.Print(res.String())
-		} else {
-			fmt.Print(err)
-		}
-	}
-
-
+	handler := handler.InputHandler{}
+	handler.Start()
 }
