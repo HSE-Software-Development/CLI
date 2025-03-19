@@ -1,7 +1,7 @@
 package main
 
 import (
-	"CLI/pkg/executor"
+	"CLI/internal/executor"
 	"bufio"
 	"bytes"
 	"fmt"

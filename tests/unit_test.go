@@ -11,6 +11,7 @@ func TestPwdCommand(t *testing.T) {
 	executor := executor.NewExecutor()
 	input := bytes.NewBufferString("")
 	output, err := executor.Execute("pwd", input)
+	
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
