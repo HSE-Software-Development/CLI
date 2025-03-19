@@ -2,7 +2,7 @@ package parser_
 
 import (
 	"bytes"
-	
+	"runtime"
 	"strings"
 )
 // TODO. Parser WILL store flags for parsing. 
@@ -16,7 +16,11 @@ type Parser struct {
 // - cmd: name of command.
 // - buffer: args.
 func (p * Parser) Parse(input string) (string, *bytes.Buffer) {
-	input = input[: len(input) - 1]
+	if runtime.GOOS == "windows" {
+        input = input[: len(input) - 2]
+    } else {
+		input = input[: len(input) - 1]
+	}
 	words := strings.SplitN(input, " ", 2)
 	
 	var b *bytes.Buffer
