@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"os"
 )
-
+// TODO. InputHandler WILL store flags. 
 type InputHandler struct {
 }
 
+// Start: starts Read-Execute-Print Loop
 func (handler *InputHandler) Start() {
 	reader := bufio.NewReader(os.Stdin)
 	exec := executor.NewExecutor()
