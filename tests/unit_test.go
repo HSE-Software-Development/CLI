@@ -8,7 +8,7 @@ import (
 )
 
 func TestPwdCommand(t *testing.T) {
-	executor := executor.NewExecutor()
+	executor := executor.New(nil)
 	input := bytes.NewBufferString("")
 	output, err := executor.Execute("pwd", input)
 	
@@ -22,7 +22,7 @@ func TestPwdCommand(t *testing.T) {
 }
 
 func TestWcCommand(t *testing.T) {
-    executor := executor.NewExecutor()
+    executor := executor.New(nil)
     input := bytes.NewBufferString("")
     output, err := executor.Execute("wc", input)
     if err != nil {
@@ -45,7 +45,7 @@ func TestWcCommand(t *testing.T) {
 }
 
 func TestExitCommand(t *testing.T) {
-    executor := executor.NewExecutor()
+    executor := executor.New(nil)
 
     // Сценарий: Вызов exit
     input := bytes.NewBufferString("")
@@ -58,7 +58,7 @@ func TestExitCommand(t *testing.T) {
 }
 
 func TestEchoCommand(t *testing.T) {
-    executor := executor.NewExecutor()
+    executor := executor.New(nil)
 
     input := bytes.NewBufferString("Hello, echo!")
     output, err := executor.Execute("echo", input)
@@ -72,7 +72,7 @@ func TestEchoCommand(t *testing.T) {
 }
 
 func TestEchoCommand2(t *testing.T) {
-    executor := executor.NewExecutor()
+    executor := executor.New(nil)
 
     input := bytes.NewBufferString("'Hello, \necho!'")
     output, err := executor.Execute("echo", input)

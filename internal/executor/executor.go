@@ -1,17 +1,21 @@
 package executor
 
 import (
+	"CLI/internal/environment"
 	"bytes"
 	"os/exec"
 )
-// Executor stores a self-implemented functions. 
+
+// Executor stores a self-implemented functions.
 type Executor struct {
 	cmds commands
+	env environment.Env
 }
 
 // NewExecutor: create a new Executor
-func NewExecutor() *Executor {
+func New(env environment.Env) *Executor {
 	return &Executor{
+		env: env,
 		cmds: newCommands(),
 	}
 }

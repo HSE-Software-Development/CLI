@@ -1,21 +1,26 @@
 package handler
 
 import (
+	"CLI/internal/environment"
 	"CLI/internal/executor"
-	"CLI/internal/parser_"
+	"CLI/internal/parseline"
 	"bufio"
 	"fmt"
 	"os"
 )
-// TODO. InputHandler WILL store flags. 
+
+// TODO. InputHandler WILL store flags.
 type InputHandler struct {
 }
+
+
 
 // Start: starts Read-Execute-Print Loop
 func (handler *InputHandler) Start() {
 	reader := bufio.NewReader(os.Stdin)
-	exec := executor.NewExecutor()
-	parser := parser_.Parser{}
+	env := environment.New()
+	exec := executor.New(env)
+	parser := parseline.New(env)
 	for {
         fmt.Print("\n>>> ")
         input, _ := reader.ReadString('\n')
