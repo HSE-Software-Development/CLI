@@ -7,6 +7,8 @@ import (
 
 type Env map[string]string
 
+
+// Constructor of environment
 func New() Env {
 	env := Env{}
 	env_var := []string{
@@ -19,11 +21,12 @@ func New() Env {
 	
 	return env
 }
-
+// Set a new variable
 func (env Env) Set(variable, value string) {
 	env[variable] = value
 }
 
+// Get a new variable
 func (env Env) Get(variable string) (string, error) {
 	if v, ok := env[variable]; ok {
 		return v, nil

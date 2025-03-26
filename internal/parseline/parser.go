@@ -20,7 +20,7 @@ func New(env environment.Env) *Parser {
 		env: env,
 	}
 }
-
+// Command store name of command and it's flags and args
 type Command struct {
 	Name string   
 	Args []string 
