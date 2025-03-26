@@ -17,6 +17,6 @@ func main() {
         fmt.Println("\nexit:", sig)
         os.Exit(0) 
     }()
-	handler := handler.InputHandler{}
+	handler := handler.New()
 	handler.Start()
 }

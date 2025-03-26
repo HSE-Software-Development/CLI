@@ -1,4 +1,7 @@
 # CLI
+
+[![CI Tests](https://github.com/HSE-Software-Development/CLI/actions/workflows/go.yaml/badge.svg)](https://github.com/HSE-Software-Development/CLI/actions)
+
 ## Запуск под Linux
 ``` bash
 # build

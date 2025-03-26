@@ -1,14 +1,16 @@
 package executor
 
 import (
+	"CLI/internal/parseline"
 	"bytes"
-	"os"
-	"io"
 	"fmt"
+	"os"
 	"strings"
+	"errors"
+	"strconv"
 )
 
-type commands map[string]func(*bytes.Buffer) (*bytes.Buffer, error)
+type commands map[string]func(parseline.Command, *bytes.Buffer) (*bytes.Buffer, error)
 
 
 func newCommands() commands {
@@ -21,22 +23,33 @@ func newCommands() commands {
 	return cmds
 }
 
-func cat(b *bytes.Buffer) (*bytes.Buffer, error) {
-	file, err := os.Open(b.String())
-	if err != nil {
-		return nil, err
+func cat(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
+	output := bytes.NewBuffer(nil)
+	if len(cmd.Args) == 0 {
+		if b != nil {
+			_, err := output.Write(b.Bytes())
+			return output, err
+		}
+		return nil, errors.New("no input provided")
 	}
-	defer file.Close()
-	b.Reset()
-	_, err = io.Copy(b, file)
-	if err != nil {
-		return nil, err
+
+	for _, filename := range cmd.Args {
+		data, err := os.ReadFile(filename)
+		if err != nil {
+			return nil, fmt.Errorf("cat: %w", err)
+		}
+		output.Write(data)
 	}
-	return b, nil
+
+	return output, nil
 }
 
-func echo(b *bytes.Buffer) (*bytes.Buffer, error) {
-	content := b.String()
+func echo(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
+	if len(cmd.Args) == 0 {
+		return bytes.NewBufferString(""), nil
+	}
+
+	content := strings.Join(cmd.Args, " ")
 	if content[0] == '"' {
 		content = content[1:len(content) - 1]
 	}
@@ -49,51 +62,44 @@ func echo(b *bytes.Buffer) (*bytes.Buffer, error) {
 	return b, nil
 }
 
-func exit(_ *bytes.Buffer) (*bytes.Buffer, error) {
-	os.Exit(0)
-	return nil, nil
+func exit(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
+	code := 0
+	if len(cmd.Args) > 0 {
+		if c, err := strconv.Atoi(cmd.Args[0]); err == nil {
+			code = c
+		}
+	}
+	os.Exit(code)
+	return nil, nil 
 }
 
-func pwd(b *bytes.Buffer) (*bytes.Buffer, error) {
+func pwd(cmd parseline.Command, _ *bytes.Buffer) (*bytes.Buffer, error) {
 	dir, err := os.Getwd()
     if err != nil {
-        return nil, err
-    }
-    b.Reset()
-    b.WriteString(dir)
-    return b, nil
+		return nil, fmt.Errorf("pwd: %w", err)
+	}
+    output := bytes.NewBufferString(dir)
+	return output, nil
 }
-func wc(b *bytes.Buffer) (*bytes.Buffer, error) {
-	content := b.String()
-	if len(content) == 0 {
-		b.WriteString("0 0 0")
-		return b, nil
-	}
-	file, err := os.Open(content)
-	if err == nil {
-		defer file.Close()
-		data, err := io.ReadAll(file)
+
+func wc(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
+	var input []byte
+	if b != nil {
+		input = b.Bytes()
+	} else if len(cmd.Args) > 0 {
+		data, err := os.ReadFile(cmd.Args[0])
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("wc: %w", err)
 		}
-		content = string(data)
+		input = data
 	} else {
-		if content[0] == '"' || content[0] == '\'' {
-			content = content[1:len(content) - 1]
-			content = strings.ReplaceAll(content, "\\n", "\n")
-		}
+		return nil, errors.New("wc: no input provided")
 	}
-	
-    lines := strings.Count(content, "\n") 
-    if len(content) > 0 && !strings.HasSuffix(content, "\n") {
-        lines++ 
-    }
-    words := len(strings.Fields(content)) 
-    characters := len(content)            
-	result := fmt.Sprintf("%d %d %d", lines, words, characters)
 
-    b.Reset()
-    b.WriteString(result)
-    return b, nil
+	lines := bytes.Count(input, []byte{'\n'})
+	words := len(bytes.Fields(input))
+	chars := len(input)
 
+	result := fmt.Sprintf("%d %d %d", lines, words, chars)
+	return bytes.NewBufferString(result), nil
 }
