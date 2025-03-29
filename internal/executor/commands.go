@@ -59,6 +59,7 @@ func echo(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 	}
 	b.Reset()
 	b.WriteString(content)
+	b.WriteByte('\n')
 	return b, nil
 }
 
