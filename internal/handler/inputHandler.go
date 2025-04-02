@@ -41,7 +41,7 @@ func (handler *InputHandler) Start() {
 			fmt.Print(err.Error())
 			continue
 		}
-		fmt.Print(result.String())
+		fmt.Println(result.String())
 	}
 }
 

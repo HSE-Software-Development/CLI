@@ -147,3 +147,139 @@ func TestWc(t *testing.T) {
 	}
 }
 
+var testInput = []byte(`Lorem ipsum dolor sit amet,
+consectetur adipiscing elit.
+Lorem IPSUM dolor sit amet,
+Praesent non Word_WORD word.
+Word at start.
+end Word
+`)
+
+func TestGrepBasic(t *testing.T) {
+	cmd := parseline.Command{
+		Name: "grep",
+		Args: []string{"Lorem"},
+	}
+	input := bytes.NewBuffer(testInput)
+	expected := `Lorem ipsum dolor sit amet,
+Lorem IPSUM dolor sit amet,
+`
+
+	output, err := grep(cmd, input)
+	if err != nil {
+		t.Fatalf("Grep failed: %v", err)
+	}
+	if output.String() != expected {
+		t.Errorf("Expected:\n%s\nGot:\n%s", expected, output.String())
+	}
+}
+
+func TestGrepCaseInsensitive(t *testing.T) {
+	cmd := parseline.Command{
+		Name: "grep",
+		Args: []string{"-i", "ipsum"},
+	}
+	input := bytes.NewBuffer(testInput)
+	expected := `Lorem ipsum dolor sit amet,
+Lorem IPSUM dolor sit amet,
+`
+
+	output, err := grep(cmd, input)
+	if err != nil {
+		t.Fatalf("Grep failed: %v", err)
+	}
+	if output.String() != expected {
+		t.Errorf("Expected:\n%s\nGot:\n%s", expected, output.String())
+	}
+}
+
+func TestGrepWholeWord(t *testing.T) {
+	cmd := parseline.Command{
+		Name: "grep",
+		Args: []string{"-w", "Word"},
+	}
+	input := bytes.NewBuffer(testInput)
+	expected := `Word at start.
+end Word
+`
+
+	output, err := grep(cmd, input)
+	if err != nil {
+		t.Fatalf("Grep failed: %v", err)
+	}
+	if output.String() != expected {
+		t.Errorf("Expected:\n%s\nGot:\n%s", expected, output.String())
+	}
+}
+
+func TestGrepAfterContext(t *testing.T) {
+	cmd := parseline.Command{
+		Name: "grep",
+		Args: []string{"-A", "1", "elit"},
+	}
+	input := bytes.NewBuffer(testInput)
+	expected := `consectetur adipiscing elit.
+Lorem IPSUM dolor sit amet,
+`
+
+	output, err := grep(cmd, input)
+	if err != nil {
+		t.Fatalf("Grep failed: %v", err)
+	}
+	if output.String() != expected {
+		t.Errorf("Expected:\n%s\nGot:\n%s", expected, output.String())
+	}
+}
+
+func TestGrepOverlappingContext(t *testing.T) {
+	cmd := parseline.Command{
+		Name: "grep",
+		Args: []string{"-A", "2", "Lorem"},
+	}
+	input := bytes.NewBuffer(testInput)
+	expected := `Lorem ipsum dolor sit amet,
+consectetur adipiscing elit.
+Lorem IPSUM dolor sit amet,
+Praesent non Word_WORD word.
+Word at start.
+`
+
+	output, err := grep(cmd, input)
+	if err != nil {
+		t.Fatalf("Grep failed: %v", err)
+	}
+	if output.String() != expected {
+		t.Errorf("Expected:\n%s\nGot:\n%s", expected, output.String())
+	}
+}
+
+func TestGrepEmptyInput(t *testing.T) {
+	cmd := parseline.Command{
+		Name: "grep",
+		Args: []string{"pattern"},
+	}
+	input := bytes.NewBuffer([]byte{})
+	expected := ""
+
+	output, err := grep(cmd, input)
+	if err != nil {
+		t.Fatalf("Grep failed: %v", err)
+	}
+	if output.String() != expected {
+		t.Errorf("Expected empty output, got: %s", output.String())
+	}
+}
+
+func TestGrepInvalidRegex(t *testing.T) {
+	cmd := parseline.Command{
+		Name: "grep",
+		Args: []string{"*invalid["},
+	}
+	input := bytes.NewBuffer(testInput)
+
+	_, err := grep(cmd, input)
+	if err == nil {
+		t.Error("Expected error for invalid regex, got nil")
+	}
+}
+

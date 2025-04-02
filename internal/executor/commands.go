@@ -8,6 +8,9 @@ import (
 	"strings"
 	"errors"
 	"strconv"
+	"regexp"
+
+	"github.com/spf13/pflag"
 )
 
 type commands map[string]func(parseline.Command, *bytes.Buffer) (*bytes.Buffer, error)
@@ -15,13 +18,24 @@ type commands map[string]func(parseline.Command, *bytes.Buffer) (*bytes.Buffer, 
 
 func newCommands() commands {
 	cmds := make(commands)
+
+	// Here you can add new command in CLI
+	// cmd["name_command"] = name_command
+	// below you need to implement a command with the following signature:
+	// func(parseline.Command, *bytes.Buffer) (*bytes.Buffer, error)
 	cmds["cat"] = cat
 	cmds["echo"] = echo
 	cmds["exit"] = exit
 	cmds["pwd"] = pwd
 	cmds["wc"] = wc
+	cmds["grep"] = grep
+
+
 	return cmds
 }
+
+//Here you need implement a command with the following signature:
+// func name_command(parseline.Command, *bytes.Buffer) (*bytes.Buffer, error) {}
 
 func cat(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 	output := bytes.NewBuffer(nil)
@@ -59,7 +73,7 @@ func echo(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 	}
 	b.Reset()
 	b.WriteString(content)
-	b.WriteByte('\n')
+
 	return b, nil
 }
 
@@ -103,4 +117,71 @@ func wc(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 
 	result := fmt.Sprintf("%d %d %d", lines, words, chars)
 	return bytes.NewBufferString(result), nil
+}
+
+func grep(cmd parseline.Command, input *bytes.Buffer) (*bytes.Buffer, error) {
+	var (
+		caseInsensitive bool
+		wordRegexp      bool
+		afterContext    int
+	)
+	
+
+	flagSet := pflag.NewFlagSet("grep", pflag.ContinueOnError)
+	flagSet.BoolVarP(&caseInsensitive, "ignore-case", "i", false, "Case-insensitive search")
+	flagSet.BoolVarP(&wordRegexp, "word-regexp", "w", false, "Match whole word")
+	flagSet.IntVarP(&afterContext, "after-context", "A", 0, "Number of trailing context lines to print")
+
+	if err := flagSet.Parse(cmd.Args); err != nil {
+		return nil, err
+	}
+
+	args := flagSet.Args()
+	if len(args) < 1 {
+		return nil, errors.New("pattern is required")
+	}
+	pattern := args[0]
+
+	var reBuilder strings.Builder
+	if caseInsensitive {
+		reBuilder.WriteString("(?i)")
+	}
+	if wordRegexp {
+		reBuilder.WriteString(`\b`)
+	}
+	reBuilder.WriteString(pattern)
+	if wordRegexp {
+		reBuilder.WriteString(`\b`)
+	}
+
+	re, err := regexp.Compile(reBuilder.String())
+	if err != nil {
+		return nil, fmt.Errorf("invalid regex pattern: %v", err)
+	}
+
+	inputData := input.String()
+	lines := strings.Split(inputData, "\n")
+	printed := make(map[int]struct{})
+
+	for i, line := range lines {
+		if re.MatchString(line) {
+			end := i + afterContext
+			if end >= len(lines) {
+				end = len(lines) - 1
+			}
+			for j := i; j <= end; j++ {
+				printed[j] = struct{}{}
+			}
+		}
+	}
+
+	var resultBuffer bytes.Buffer
+	for i := 0; i < len(lines); i++ {
+		if _, ok := printed[i]; ok {
+			resultBuffer.WriteString(lines[i])
+			resultBuffer.WriteByte('\n')
+		}
+	}
+
+	return &resultBuffer, nil
 }
