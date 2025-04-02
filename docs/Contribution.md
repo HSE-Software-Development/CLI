@@ -2,7 +2,7 @@
 
 Для того, чтобы добавить обработку новых команд в CLI, вам необходимо:
 - Создать fork этого проекта
-- В файле [commands.go](../internal/executor/commands.go) добавить функцию со следующей сигнатурой:
+- В файле [commands.go](../internal/executor/commands.go) добавить функцию со следующей сигнатурой, [требования/советы](#требованиясоветы-к-реализации):
 ```go
 func name_cmd(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {}
 ```
@@ -12,10 +12,10 @@ func name_cmd(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {}
 func TestNameCommand(t *testing.T) {
 	tests := []struct {
 		name    string // название теста
-		cmd     parseline.Command // Команда, которую хотите выполнить
+		cmd     parseline.Command // команда, которую хотите выполнить
 		input   *bytes.Buffer // буффер от прошлой функции в pipeline
-		want    string // Ожидаемый результат
-		wantErr bool // Должена ли функция возвращать ошибку
+		want    string // ожидаемый результат
+		wantErr bool // должена ли функция возвращать ошибку
 	}{
         // Задайте параметры тестов
 	}
@@ -55,8 +55,9 @@ func newCommands() commands {
 	return cmds
 }
 ```
+- Дополните документацию по новой команде в [Commands.md](Commands.md)
 
-Требования/советы к реализации:
+## Требования/советы к реализации:
 - На вход подается структура parseline.Command, которая задана в файле [parser.go](../internal/parseline/parser.go) 
 ```go
 // Command store name of command and it's flags and args
