@@ -1,11 +1,21 @@
 #!/bin/bash
 
-BIN_PATH="./bin/cli-app"
+APP_NAME="cli-app"
+OUTPUT_DIR="./bin"
 
-if [ ! -f "$BIN_PATH" ]; then
-    echo "File not found. Build app (scripts/build.sh)."
+
+GOOS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+GOARCH="$(uname -m)"
+case "$GOARCH" in
+    x86_64) GOARCH="amd64" ;;
+    aarch64) GOARCH="arm64" ;;
+esac
+
+BINARY="$OUTPUT_DIR/$APP_NAME-$GOOS-$GOARCH"
+
+if [ ! -f "$BINARY" ]; then
+    echo "Error: Binary not found. Run ./build.sh first."
     exit 1
 fi
 
-echo "Running..."
-$BIN_PATH
+"$BINARY" "$@"

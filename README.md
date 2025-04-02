@@ -11,7 +11,7 @@
 - pwd — распечатать текущую директорию
 - exit — выйти из интерпретатора
 
-## Запуск под Linux
+## Запуск под macOS/Linux
 ``` bash
 # build
 chmod +x scripts/build.sh
