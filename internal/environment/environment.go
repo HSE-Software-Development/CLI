@@ -21,6 +21,18 @@ func New() Env {
 	
 	return env
 }
+
+// Updates environment variables
+// Recommended to use if your command changes the working directory.
+func (env Env) Reset() {
+	env_var := []string{
+		"PWD", "SHELL", "TERM", "USER", "OLDPWD", "LS_COLORS", "MAIL", "PATH", "LANG", "HOME", "_*",
+	}
+	for _, v := range env_var {
+		cmd := os.Getenv(v)
+		env[v] = string(cmd)
+	}
+}
 // Set a new variable
 func (env Env) Set(variable, value string) {
 	env[variable] = value
