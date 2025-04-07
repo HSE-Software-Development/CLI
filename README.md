@@ -2,6 +2,8 @@
 
 [![CI Tests](https://github.com/HSE-Software-Development/CLI/actions/workflows/go.yaml/badge.svg)](https://github.com/HSE-Software-Development/CLI/actions)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Простой интерпретатор командной строки, поддерживающий [самореализованные команды](#поддерживаемые-команды), вызов внешних программ, а также поддержку переменных, своих и окружения.
 
 ## Поддерживаемые команды
