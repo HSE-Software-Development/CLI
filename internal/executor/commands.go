@@ -98,21 +98,20 @@ func pwd(cmd parseline.Command, _ *bytes.Buffer) (*bytes.Buffer, error) {
 }
 
 func wc(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
-	var input []byte
-	if b != nil {
-		input = b.Bytes()
+	var input string
+	if len(cmd.Args) == 0 {
+		input = b.String()
 	} else if len(cmd.Args) > 0 {
 		data, err := os.ReadFile(cmd.Args[0])
 		if err != nil {
 			return nil, fmt.Errorf("wc: %w", err)
 		}
-		input = data
+		input = string(data)
 	} else {
 		return nil, errors.New("wc: no input provided")
 	}
-
-	lines := bytes.Count(input, []byte{'\n'})
-	words := len(bytes.Fields(input))
+	lines := strings.Count(input, "\n")
+	words := len(strings.Fields(input))
 	chars := len(input)
 
 	result := fmt.Sprintf("%d %d %d", lines, words, chars)
@@ -158,8 +157,15 @@ func grep(cmd parseline.Command, input *bytes.Buffer) (*bytes.Buffer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid regex pattern: %v", err)
 	}
-
+	
 	inputData := input.String()
+	if inputData == "" {
+		data, err := os.ReadFile(cmd.Args[len(cmd.Args) - 1])
+		if err != nil {
+			inputData = ""
+		}
+		inputData = string(data)
+	}
 	lines := strings.Split(inputData, "\n")
 	printed := make(map[int]struct{})
 

@@ -64,7 +64,6 @@ func (executor *Executor) execute(command parseline.Command, b *bytes.Buffer) (*
 func (executor *Executor) Execute(commands []parseline.Command) (*bytes.Buffer, error) {
 	var err error
 	buffer := bytes.NewBufferString("")
-	
 	for _, cmd := range commands {
 		buffer, err = executor.execute(cmd, buffer)
 		if err != nil {

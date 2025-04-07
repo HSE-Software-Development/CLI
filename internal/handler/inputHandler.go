@@ -30,7 +30,7 @@ func (handler *InputHandler) Start() {
 	for {
         fmt.Print("\n>>> ")
         input, _ := reader.ReadString('\n')
-
+		
 		pipeline, err := parser.ParsePipeline(cropLine(input))
 		if err != nil {
 			fmt.Print(err.Error())
