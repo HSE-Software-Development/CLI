@@ -122,12 +122,28 @@ func (parser *Parser) substitution(s string) (string, error) {
 	var result strings.Builder
 	i := 0
 	n := len(s)
+	inQuotes := false
+	quoteChar := byte(0) 
 
 	for i < n {
-		if s[i] == '$' {
+		switch {
+		case s[i] == '"':
+			if !inQuotes {
+				
+				inQuotes = true
+				quoteChar = s[i]
+			} else if s[i] == quoteChar {
+			
+				inQuotes = false
+				quoteChar = 0
+			}
+			result.WriteByte(s[i])
+			i++
+
+		case s[i] == '$' && !inQuotes:
 			i++
 			if i < n && s[i] == '{' {
-				i++ 
+				i++
 				varNameStart := i
 
 				for i < n && s[i] != '}' {
@@ -139,7 +155,7 @@ func (parser *Parser) substitution(s string) (string, error) {
 				}
 
 				varName := s[varNameStart:i]
-				i++ 
+				i++
 
 				value, err := parser.env.Get(varName)
 				if err != nil {
@@ -158,16 +174,15 @@ func (parser *Parser) substitution(s string) (string, error) {
 				if varName == "" {
 					result.WriteByte('$')
 				} else {
-
 					value, err := parser.env.Get(varName)
 					if err != nil {
 						return "", fmt.Errorf("error getting variable %s: %w", varName, err)
 					}
-					
 					result.WriteString(value)
 				}
 			}
-		} else {
+
+		default:
 			result.WriteByte(s[i])
 			i++
 		}

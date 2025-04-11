@@ -1,18 +1,25 @@
 #!/bin/bash
 
 APP_NAME="cli-app"
-GOOS="linux"
-GOARCH="amd64"
 OUTPUT_DIR="./bin"
 
-mkdir -p $OUTPUT_DIR
+GOOS="$(uname -s | tr '[:upper:]' '[:lower:]')"  # linux/darwin
+GOARCH="$(uname -m)"                              # x86_64/arm64
 
-echo "build for $GOOS/$GOARCH..."
-GOOS=$GOOS GOARCH=$GOARCH go build -o $OUTPUT_DIR/$APP_NAME ./cmd/cli
 
-if [ -f "$OUTPUT_DIR/$APP_NAME" ]; then
-    echo "Build over. Path: $OUTPUT_DIR/$APP_NAME"
+case "$GOARCH" in
+    x86_64) GOARCH="amd64" ;;
+    aarch64) GOARCH="arm64" ;;
+esac
+
+mkdir -p "$OUTPUT_DIR"
+
+echo "Building for $GOOS/$GOARCH..."
+GOOS="$GOOS" GOARCH="$GOARCH" go build -o "$OUTPUT_DIR/$APP_NAME-$GOOS-$GOARCH" ./cmd/cli
+
+if [ -f "$OUTPUT_DIR/$APP_NAME-$GOOS-$GOARCH" ]; then
+    echo "Build successful. Binary: $OUTPUT_DIR/$APP_NAME-$GOOS-$GOARCH"
 else
-    echo "Building error"
+    echo "Build failed!"
     exit 1
 fi
