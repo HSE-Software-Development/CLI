@@ -7,10 +7,15 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"runtime"
 )
 
 // TODO. InputHandler WILL store flags.
 type InputHandler struct {
+}
+
+func New() *InputHandler {
+	return &InputHandler{}
 }
 
 
@@ -19,17 +24,31 @@ type InputHandler struct {
 func (handler *InputHandler) Start() {
 	reader := bufio.NewReader(os.Stdin)
 	env := environment.New()
-	exec := executor.New(env)
 	parser := parseline.New(env)
+	executor := executor.New(env)
+
 	for {
         fmt.Print("\n>>> ")
         input, _ := reader.ReadString('\n')
-		cmd, b := parser.Parse(input)
-        res, err := exec.Execute(cmd, b)
-		if err == nil {
-			fmt.Print(res.String())
-		} else {
-			fmt.Print(err)
+
+		pipeline, err := parser.ParsePipeline(cropLine(input))
+		if err != nil {
+			fmt.Print(err.Error())
+			continue
 		}
+		result, err := executor.Execute(pipeline)
+		if err != nil {
+			fmt.Print(err.Error())
+			continue
+		}
+		fmt.Print(result.String())
+	}
+}
+
+func cropLine(input string) string {
+	if runtime.GOOS == "windows" {
+        return input[: len(input) - 2]
+    } else {
+		return input[: len(input) - 1]
 	}
 }
