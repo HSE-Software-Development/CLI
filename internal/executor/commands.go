@@ -18,7 +18,7 @@ type commands map[string]func(parseline.Command, *bytes.Buffer) (*bytes.Buffer, 
 
 func newCommands() commands {
 	cmds := make(commands)
-
+	
 	// Here you can add new command in CLI
 	// cmd["name_command"] = name_command
 	// below you need to implement a command with the following signature:
@@ -119,75 +119,97 @@ func wc(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 }
 
 func grep(cmd parseline.Command, input *bytes.Buffer) (*bytes.Buffer, error) {
-	var (
-		caseInsensitive bool
-		wordRegexp      bool
-		afterContext    int
-	)
-	
-
-	flagSet := pflag.NewFlagSet("grep", pflag.ContinueOnError)
-	flagSet.BoolVarP(&caseInsensitive, "ignore-case", "i", false, "Case-insensitive search")
-	flagSet.BoolVarP(&wordRegexp, "word-regexp", "w", false, "Match whole word")
-	flagSet.IntVarP(&afterContext, "after-context", "A", 0, "Number of trailing context lines to print")
-
-	if err := flagSet.Parse(cmd.Args); err != nil {
+	opts, err := parseArgs(cmd.Args)
+	if err != nil {
 		return nil, err
 	}
 
-	args := flagSet.Args()
-	if len(args) < 1 {
-		return nil, errors.New("pattern is required")
-	}
-	pattern := args[0]
-
-	var reBuilder strings.Builder
-	if caseInsensitive {
-		reBuilder.WriteString("(?i)")
-	}
-	if wordRegexp {
-		reBuilder.WriteString(`\b`)
-	}
-	reBuilder.WriteString(pattern)
-	if wordRegexp {
-		reBuilder.WriteString(`\b`)
-	}
-
-	re, err := regexp.Compile(reBuilder.String())
+	re, err := compileRegex(opts)
 	if err != nil {
-		return nil, fmt.Errorf("invalid regex pattern: %v", err)
+		return nil, fmt.Errorf("regex error: %v", err)
+	}
+
+	data, err := readData(opts, input)
+	if err != nil {
+		return nil, err
+	}
+
+	result := processData(data, re, opts.afterContext)
+	return result, nil
+}
+
+func parseArgs(args []string) (*grepOptions, error) {
+	opts := &grepOptions{}
+	fs := pflag.NewFlagSet("grep", pflag.ContinueOnError)
+	
+	fs.IntVarP(&opts.afterContext, "after-context", "A", 0, "Lines after match")
+	fs.BoolVarP(&opts.ignoreCase, "ignore-case", "i", false, "Ignore case")
+	fs.BoolVarP(&opts.wordRegexp, "word-regexp", "w", false, "Whole word match")
+
+	if err := fs.Parse(args); err != nil {
+		return nil, err
+	}
+
+	remaining := fs.Args()
+	if len(remaining) < 1 {
+		return nil, fmt.Errorf("pattern required")
+	}
+
+	opts.pattern = strings.Trim(remaining[0], `"'`)
+	if len(remaining) > 1 {
+		opts.files = remaining[1:]
+	}
+
+	return opts, nil
+}
+
+func compileRegex(opts *grepOptions) (*regexp.Regexp, error) {
+	pattern := opts.pattern
+	
+	if opts.wordRegexp {
+		pattern = fmt.Sprintf(`\b%s\b`, pattern)
 	}
 	
-	inputData := input.String()
-	if inputData == "" {
-		data, err := os.ReadFile(cmd.Args[len(cmd.Args) - 1])
-		if err != nil {
-			inputData = ""
-		}
-		inputData = string(data)
+	if opts.ignoreCase {
+		pattern = "(?i)" + pattern
 	}
-	lines := strings.Split(inputData, "\n")
-	printed := make(map[int]struct{})
 
-	for i, line := range lines {
-		if re.MatchString(line) {
-			end := i + afterContext
-			if end >= len(lines) {
-				end = len(lines) - 1
+	return regexp.Compile(pattern)
+}
+
+func readData(opts *grepOptions, input *bytes.Buffer) ([]byte, error) {
+	if len(opts.files) > 0 {
+		var data []byte
+		for _, f := range opts.files {
+			fileData, err := os.ReadFile(f)
+			if err != nil {
+				return nil, fmt.Errorf("error reading %s: %v", f, err)
 			}
-			for j := i; j <= end; j++ {
-				printed[j] = struct{}{}
-			}
+			data = append(data, fileData...)
+		}
+		return data, nil
+	}
+	return input.Bytes(), nil
+}
+
+func processData(data []byte, re *regexp.Regexp, context int) *bytes.Buffer {
+	lines := bytes.Split(data, []byte{'\n'})
+	var output bytes.Buffer
+	remaining := 0
+
+	for _, line := range lines {
+		if remaining > 0 {
+			output.Write(line)
+			output.WriteByte('\n')
+			remaining--
+		}
+
+		if re.Match(line) {
+			output.Write(line)
+			output.WriteByte('\n')
+			remaining = context
 		}
 	}
 
-	var resultBuffer bytes.Buffer
-	for i := 0; i < len(lines); i++ {
-		if _, ok := printed[i]; ok {
-			resultBuffer.WriteString(lines[i])
-			resultBuffer.WriteByte('\n')
-		}
-	}
-
-	return &resultBuffer, nil
+	return &output
 }
