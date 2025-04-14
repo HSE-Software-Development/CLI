@@ -25,6 +25,34 @@ func New(env environment.Env) *Executor {
 	}
 }
 
+// Execute: execute commands, and returns resulting buffer.
+// Parameters:
+// - commands: []parseline.Command
+// Returns:
+// - buffer: resulting buffer.
+// - err: error of execute.
+func (executor *Executor) Execute(commands []parseline.Command) (*bytes.Buffer, error) {
+	var err error
+	buffer := bytes.NewBufferString("")
+	for _, cmd := range commands {
+		buffer, err = executor.execute(cmd, buffer)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return buffer, nil
+} 
+
+
+type grepOptions struct {
+	ignoreCase   bool
+	wordRegexp   bool
+	afterContext int
+	pattern      string
+	files        []string
+}
+
+
 func (executor *Executor) execute(command parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 	if cmd, ok := executor.cmds[command.Name]; ok {
 		return cmd(command, b)
@@ -54,21 +82,3 @@ func (executor *Executor) execute(command parseline.Command, b *bytes.Buffer) (*
 		return bytes.NewBufferString(string(output)), nil
 	}
 }
-
-// Execute: execute commands, and returns resulting buffer.
-// Parameters:
-// - commands: []parseline.Command
-// Returns:
-// - buffer: resulting buffer.
-// - err: error of execute.
-func (executor *Executor) Execute(commands []parseline.Command) (*bytes.Buffer, error) {
-	var err error
-	buffer := bytes.NewBufferString("")
-	for _, cmd := range commands {
-		buffer, err = executor.execute(cmd, buffer)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return buffer, nil
-} 
