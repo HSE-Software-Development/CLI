@@ -240,6 +240,7 @@ func TestGrepOverlappingContext(t *testing.T) {
 	expected := `Lorem ipsum dolor sit amet,
 consectetur adipiscing elit.
 Lorem IPSUM dolor sit amet,
+Lorem IPSUM dolor sit amet,
 Praesent non Word_WORD word.
 Word at start.
 `
