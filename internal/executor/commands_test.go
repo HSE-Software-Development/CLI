@@ -4,6 +4,9 @@ import (
 	"CLI/internal/parseline"
 	"bytes"
 	"os"
+	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -284,3 +287,71 @@ func TestGrepInvalidRegex(t *testing.T) {
 	}
 }
 
+
+func TestLsEmpty(t *testing.T) {
+	tempDir := t.TempDir()
+
+	cmd := parseline.Command{
+		Name: "ls",
+		Args: []string{tempDir},
+	}
+	var testInput []byte
+	input := bytes.NewBuffer(testInput)
+	expected := ``
+
+	output, err := ls(cmd, input)
+	if err != nil {
+		t.Fatalf("ls failed: %v", err)
+	}
+	if output.String() != expected {
+		t.Errorf("Expected:\n%s\nGot:\n%s", expected, output.String())
+	}
+}
+
+func TestLsNonEmpty(t *testing.T) {
+	tempDir := t.TempDir()
+	var filePaths []string
+    for i := 0; i < 5; i++ {
+        file, err := os.CreateTemp(tempDir, "testfile-*.tmp")
+        if err != nil {
+            t.Fatalf("Failed to create temporary file: %v", err)
+        }
+        defer file.Close()
+        filePaths = append(filePaths, filepath.Base(file.Name()))
+    }
+
+	cmd := parseline.Command{
+		Name: "ls",
+		Args: []string{tempDir},
+	}
+	var testInput []byte
+	input := bytes.NewBuffer(testInput)
+	slices.Sort(filePaths)
+	expected := strings.Join(filePaths, "\n") + "\n"
+
+	output, err := ls(cmd, input)
+	if err != nil {
+		t.Fatalf("ls failed: %v", err)
+	}
+	if output.String() != expected {
+		t.Errorf("Expected:\n%s\nGot:\n%s", expected, output.String())
+	}
+}
+
+func TestLsCurrentDir(t *testing.T) {
+	cmd := parseline.Command{
+		Name: "ls",
+	}
+	var testInput []byte
+	input := bytes.NewBuffer(testInput)
+
+	output, err := ls(cmd, input)
+	if err != nil {
+		t.Fatalf("ls failed: %v", err)
+	}
+	output_tokens := strings.Split(output.String(), "\n")
+	t.Log(output_tokens)
+	if ! slices.Contains(output_tokens, "commands_test.go") {
+		t.Errorf("ls without argument does not work")
+	}
+}
