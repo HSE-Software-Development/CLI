@@ -2,9 +2,9 @@ package parseline
 
 import (
 	"CLI/internal/environment"
+	"errors"
 	"fmt"
 	"strings"
-	"errors"
 	"unicode"
 )
 
@@ -13,26 +13,27 @@ type Parser struct {
 	env environment.Env
 }
 
-// Constructor of parser            
+// Constructor of parser
 // Parameters: env environment.Env
 func New(env environment.Env) *Parser {
 	return &Parser{
 		env: env,
 	}
 }
+
 // Command store name of command and it's flags and args
 type Command struct {
-	Name string   
-	Args []string 
+	Name string
+	Args []string
 }
 
 // ParsePipeline: parses the received string into pipeline
-// Parameters: 
-// - input: string 
-// Returns: 
+// Parameters:
+// - input: string
+// Returns:
 // - []Command: pipeline
 // - error:
-func (parser * Parser)ParsePipeline(input string) ([]Command, error) {
+func (parser *Parser) ParsePipeline(input string) ([]Command, error) {
 	var commands []Command
 	var currentCmd strings.Builder
 	var inSingleQuote, inDoubleQuote, escaped bool
@@ -123,17 +124,17 @@ func (parser *Parser) substitution(s string) (string, error) {
 	i := 0
 	n := len(s)
 	inQuotes := false
-	quoteChar := byte(0) 
+	quoteChar := byte(0)
 
 	for i < n {
 		switch {
 		case s[i] == '"':
 			if !inQuotes {
-				
+
 				inQuotes = true
 				quoteChar = s[i]
 			} else if s[i] == quoteChar {
-			
+
 				inQuotes = false
 				quoteChar = 0
 			}

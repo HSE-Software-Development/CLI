@@ -1,9 +1,11 @@
 package executor
 
 import (
+	"CLI/internal/environment"
 	"CLI/internal/parseline"
 	"bytes"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -40,7 +42,7 @@ func TestCat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := cat(tt.cmd, tt.input)
+			got, err := cat(tt.cmd, tt.input, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("cat() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -85,7 +87,7 @@ func TestEcho(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := echo(tt.cmd, tt.input)
+			got, err := echo(tt.cmd, tt.input, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("echo() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -100,7 +102,7 @@ func TestEcho(t *testing.T) {
 func TestPwd(t *testing.T) {
 	want, _ := os.Getwd()
 	cmd := parseline.Command{Name: "pwd", Args: nil}
-	got, err := pwd(cmd, nil)
+	got, err := pwd(cmd, nil, nil)
 	if err != nil {
 		t.Errorf("pwd() error = %v", err)
 	}
@@ -135,7 +137,7 @@ func TestWc(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := wc(tt.cmd, tt.input)
+			got, err := wc(tt.cmd, tt.input, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("wc() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -165,7 +167,7 @@ func TestGrepBasic(t *testing.T) {
 Lorem IPSUM dolor sit amet,
 `
 
-	output, err := grep(cmd, input)
+	output, err := grep(cmd, input, nil)
 	if err != nil {
 		t.Fatalf("Grep failed: %v", err)
 	}
@@ -184,7 +186,7 @@ func TestGrepCaseInsensitive(t *testing.T) {
 Lorem IPSUM dolor sit amet,
 `
 
-	output, err := grep(cmd, input)
+	output, err := grep(cmd, input, nil)
 	if err != nil {
 		t.Fatalf("Grep failed: %v", err)
 	}
@@ -203,7 +205,7 @@ func TestGrepWholeWord(t *testing.T) {
 end Word
 `
 
-	output, err := grep(cmd, input)
+	output, err := grep(cmd, input, nil)
 	if err != nil {
 		t.Fatalf("Grep failed: %v", err)
 	}
@@ -222,7 +224,7 @@ func TestGrepAfterContext(t *testing.T) {
 Lorem IPSUM dolor sit amet,
 `
 
-	output, err := grep(cmd, input)
+	output, err := grep(cmd, input, nil)
 	if err != nil {
 		t.Fatalf("Grep failed: %v", err)
 	}
@@ -245,7 +247,7 @@ Praesent non Word_WORD word.
 Word at start.
 `
 
-	output, err := grep(cmd, input)
+	output, err := grep(cmd, input, nil)
 	if err != nil {
 		t.Fatalf("Grep failed: %v", err)
 	}
@@ -262,7 +264,7 @@ func TestGrepEmptyInput(t *testing.T) {
 	input := bytes.NewBuffer([]byte{})
 	expected := ""
 
-	output, err := grep(cmd, input)
+	output, err := grep(cmd, input, nil)
 	if err != nil {
 		t.Fatalf("Grep failed: %v", err)
 	}
@@ -278,9 +280,102 @@ func TestGrepInvalidRegex(t *testing.T) {
 	}
 	input := bytes.NewBuffer(testInput)
 
-	_, err := grep(cmd, input)
+	_, err := grep(cmd, input, nil)
 	if err == nil {
 		t.Error("Expected error for invalid regex, got nil")
 	}
 }
 
+func TestCdCasualUsage(t *testing.T) {
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "subdir")
+	if err := os.Mkdir(subDir, 0755); err != nil {
+		t.Fatalf("failed to create subdir: %v", err)
+	}
+
+	env := environment.New()
+	exec := New(env)
+	exec.cwd = tmpDir
+
+	if exec.cwd != tmpDir {
+		t.Fatalf("expected cwd to be %s, got %s", tmpDir, exec.cwd)
+	}
+
+	cmd := parseline.Command{Name: "cd", Args: []string{"subdir"}}
+	_, err := cd(cmd, &bytes.Buffer{}, exec)
+	if err != nil {
+		t.Fatalf("cd command failed: %v", err)
+	}
+
+	if exec.cwd != subDir {
+		t.Errorf("expected cwd to be %s after cd, got %s", subDir, exec.cwd)
+	}
+}
+
+func TestCdRelativeAndDotNotation(t *testing.T) {
+	tmpRoot := t.TempDir()
+
+	subdir1 := filepath.Join(tmpRoot, "dir1")
+	subdir2 := filepath.Join(subdir1, "dir2")
+	if err := os.MkdirAll(subdir2, 0755); err != nil {
+		t.Fatalf("could not create dirs: %v", err)
+	}
+
+	env := environment.New()
+	exec := New(env)
+	exec.cwd = tmpRoot
+
+	tests := []struct {
+		input   string
+		wantDir string
+	}{
+		{"dir1", subdir1},
+		{".", subdir1},
+		{"dir2", subdir2},
+		{"../..", tmpRoot},
+	}
+
+	for _, tt := range tests {
+		cmd := parseline.Command{Name: "cd", Args: []string{tt.input}}
+		_, err := cd(cmd, &bytes.Buffer{}, exec)
+		if err != nil {
+			t.Errorf("cd %q failed: %v", tt.input, err)
+			continue
+		}
+		if exec.cwd != tt.wantDir {
+			t.Errorf("after cd %q: expected %q, got %q", tt.input, tt.wantDir, exec.cwd)
+		}
+	}
+}
+
+func TestCdToHome(t *testing.T) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("can't test home dir; os.UserHomeDir() failed")
+	}
+
+	env := environment.New()
+	exec := New(env)
+	exec.cwd = "/"
+
+	cmd := parseline.Command{Name: "cd"} // no args
+	_, err = cd(cmd, &bytes.Buffer{}, exec)
+	if err != nil {
+		t.Fatalf("cd to home failed: %v", err)
+	}
+	if exec.cwd != homeDir {
+		t.Errorf("expected home dir %q, got %q", homeDir, exec.cwd)
+	}
+}
+
+func TestCdToInvalidPath(t *testing.T) {
+	env := environment.New()
+	exec := New(env)
+	exec.cwd = t.TempDir()
+
+	cmd := parseline.Command{Name: "cd", Args: []string{"not-a-dir"}}
+	_, err := cd(cmd, &bytes.Buffer{}, exec)
+	if err == nil {
+		t.Fatal("expected error when cd into nonexistent dir, got none")
+	}
+}

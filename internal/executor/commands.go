@@ -3,22 +3,22 @@ package executor
 import (
 	"CLI/internal/parseline"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
-	"strings"
-	"errors"
-	"strconv"
+	"path/filepath"
 	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/spf13/pflag"
 )
 
-type commands map[string]func(parseline.Command, *bytes.Buffer) (*bytes.Buffer, error)
-
+type commands map[string]func(parseline.Command, *bytes.Buffer, *Executor) (*bytes.Buffer, error)
 
 func newCommands() commands {
 	cmds := make(commands)
-	
+
 	// Here you can add new command in CLI
 	// cmd["name_command"] = name_command
 	// below you need to implement a command with the following signature:
@@ -29,7 +29,7 @@ func newCommands() commands {
 	cmds["pwd"] = pwd
 	cmds["wc"] = wc
 	cmds["grep"] = grep
-
+	cmds["cd"] = cd
 
 	return cmds
 }
@@ -37,7 +37,7 @@ func newCommands() commands {
 //Here you need implement a command with the following signature:
 // func name_command(parseline.Command, *bytes.Buffer) (*bytes.Buffer, error) {}
 
-func cat(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
+func cat(cmd parseline.Command, b *bytes.Buffer, executor *Executor) (*bytes.Buffer, error) {
 	output := bytes.NewBuffer(nil)
 	if len(cmd.Args) == 0 {
 		if b != nil {
@@ -58,17 +58,17 @@ func cat(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 	return output, nil
 }
 
-func echo(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
+func echo(cmd parseline.Command, b *bytes.Buffer, executor *Executor) (*bytes.Buffer, error) {
 	if len(cmd.Args) == 0 {
 		return bytes.NewBufferString(""), nil
 	}
 
 	content := strings.Join(cmd.Args, " ")
 	if content[0] == '"' {
-		content = content[1:len(content) - 1]
+		content = content[1 : len(content)-1]
 	}
 	if content[0] == '\'' {
-		content = content[1:len(content) - 1]
+		content = content[1 : len(content)-1]
 		content = strings.ReplaceAll(content, "\\n", "\n")
 	}
 	b.Reset()
@@ -77,7 +77,7 @@ func echo(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 	return b, nil
 }
 
-func exit(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
+func exit(cmd parseline.Command, b *bytes.Buffer, executor *Executor) (*bytes.Buffer, error) {
 	code := 0
 	if len(cmd.Args) > 0 {
 		if c, err := strconv.Atoi(cmd.Args[0]); err == nil {
@@ -85,19 +85,19 @@ func exit(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 		}
 	}
 	os.Exit(code)
-	return nil, nil 
+	return nil, nil
 }
 
-func pwd(cmd parseline.Command, _ *bytes.Buffer) (*bytes.Buffer, error) {
+func pwd(cmd parseline.Command, _ *bytes.Buffer, executor *Executor) (*bytes.Buffer, error) {
 	dir, err := os.Getwd()
-    if err != nil {
+	if err != nil {
 		return nil, fmt.Errorf("pwd: %w", err)
 	}
-    output := bytes.NewBufferString(dir)
+	output := bytes.NewBufferString(dir)
 	return output, nil
 }
 
-func wc(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
+func wc(cmd parseline.Command, b *bytes.Buffer, executor *Executor) (*bytes.Buffer, error) {
 	var input string
 	if len(cmd.Args) == 0 {
 		input = b.String()
@@ -118,7 +118,7 @@ func wc(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 	return bytes.NewBufferString(result), nil
 }
 
-func grep(cmd parseline.Command, input *bytes.Buffer) (*bytes.Buffer, error) {
+func grep(cmd parseline.Command, input *bytes.Buffer, executor *Executor) (*bytes.Buffer, error) {
 	opts, err := parseArgs(cmd.Args)
 	if err != nil {
 		return nil, err
@@ -141,7 +141,7 @@ func grep(cmd parseline.Command, input *bytes.Buffer) (*bytes.Buffer, error) {
 func parseArgs(args []string) (*grepOptions, error) {
 	opts := &grepOptions{}
 	fs := pflag.NewFlagSet("grep", pflag.ContinueOnError)
-	
+
 	fs.IntVarP(&opts.afterContext, "after-context", "A", 0, "Lines after match")
 	fs.BoolVarP(&opts.ignoreCase, "ignore-case", "i", false, "Ignore case")
 	fs.BoolVarP(&opts.wordRegexp, "word-regexp", "w", false, "Whole word match")
@@ -165,11 +165,11 @@ func parseArgs(args []string) (*grepOptions, error) {
 
 func compileRegex(opts *grepOptions) (*regexp.Regexp, error) {
 	pattern := opts.pattern
-	
+
 	if opts.wordRegexp {
 		pattern = fmt.Sprintf(`\b%s\b`, pattern)
 	}
-	
+
 	if opts.ignoreCase {
 		pattern = "(?i)" + pattern
 	}
@@ -212,4 +212,30 @@ func processData(data []byte, re *regexp.Regexp, context int) *bytes.Buffer {
 	}
 
 	return &output
+}
+
+func cd(cmd parseline.Command, b *bytes.Buffer, executor *Executor) (*bytes.Buffer, error) {
+	var path string
+	if len(cmd.Args) == 0 {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("cd: cannot get home directory: %w", err)
+		}
+		path = homeDir
+	} else {
+		path = cmd.Args[0]
+	}
+
+	absPath, err := filepath.Abs(filepath.Join(executor.cwd, path))
+	if err != nil {
+		return nil, fmt.Errorf("cd: cannot resolve path: %w", err)
+	}
+
+	info, err := os.Stat(absPath)
+	if err != nil || !info.IsDir() {
+		return nil, fmt.Errorf("cd: %s: not a directory", path)
+	}
+
+	executor.cwd = absPath
+	return b, nil
 }

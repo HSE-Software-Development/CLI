@@ -5,6 +5,7 @@ import (
 	"CLI/internal/parseline"
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -12,16 +13,22 @@ import (
 // Executor stores a self-implemented functions and a reference to an object storing environment variables
 type Executor struct {
 	cmds commands
-	env environment.Env
+	env  environment.Env
+	cwd  string
 }
 
 // Constructor: creates a new Executor and initializes commands
 // Parameters:
 // - env: environment.Env
 func New(env environment.Env) *Executor {
+	startDir, err := os.Getwd()
+	if err != nil {
+		startDir = "/"
+	}
 	return &Executor{
-		env: env,
+		env:  env,
 		cmds: newCommands(),
+		cwd:  startDir,
 	}
 }
 
@@ -41,8 +48,7 @@ func (executor *Executor) Execute(commands []parseline.Command) (*bytes.Buffer, 
 		}
 	}
 	return buffer, nil
-} 
-
+}
 
 type grepOptions struct {
 	ignoreCase   bool
@@ -52,29 +58,29 @@ type grepOptions struct {
 	files        []string
 }
 
-
 func (executor *Executor) execute(command parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 	if cmd, ok := executor.cmds[command.Name]; ok {
-		return cmd(command, b)
-	} else if strings.ContainsRune(command.Name, '=' ){
+		return cmd(command, b, executor)
+	} else if strings.ContainsRune(command.Name, '=') {
 		split := strings.Split(command.Name, "=")
 		if len(split) != 2 {
 			return nil, fmt.Errorf("command %s: '=' is incorrect symbol for variable or value", command.Name)
-		} 
+		}
 		if len(split[0]) == 0 || len(split[1]) == 0 {
 			return nil, fmt.Errorf("command %s: incorrect lenght of variable or value", command.Name)
-		}   
+		}
 		executor.env.Set(split[0], split[1])
 		return bytes.NewBufferString(""), nil
 
 	} else {
 		var res *exec.Cmd
-		content := b.String() 
+		content := b.String()
 		if len(content) > 0 {
 			res = exec.Command(command.Name, append(command.Args, content)...)
 		} else {
 			res = exec.Command(command.Name, command.Args...)
 		}
+		res.Dir = executor.cwd
 		output, err := res.Output()
 		if err != nil {
 			return nil, fmt.Errorf("command %s: %s", command.Name, err.Error())
