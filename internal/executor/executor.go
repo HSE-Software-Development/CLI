@@ -67,7 +67,9 @@ func (executor *Executor) execute(command parseline.Command, b *bytes.Buffer) (*
 		}
 		result, res_error = cmd(command, b)
 		if command.Name == "cd" {
+			executor.env.Set("OLD_PWD", executor.cwd)
 			executor.cwd = result.String()
+			executor.env.Set("PWD", executor.cwd)
 			return &bytes.Buffer{}, res_error
 		}
 		return result, res_error
