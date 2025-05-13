@@ -29,7 +29,8 @@ func newCommands() commands {
 	cmds["pwd"] = pwd
 	cmds["wc"] = wc
 	cmds["grep"] = grep
-	cmds["cd"] = cd
+	cmds["cd"] = cd	cmds["ls"] = ls
+
 
 	return cmds
 }
@@ -238,4 +239,29 @@ func cd(cmd parseline.Command, b *bytes.Buffer, executor *Executor) (*bytes.Buff
 
 	executor.cwd = absPath
 	return b, nil
+}
+
+
+// Takes first provided argument as path to a directory and lists all files in it.
+func ls(cmd parseline.Command, buffer *bytes.Buffer) (*bytes.Buffer, error) {
+	var path string
+	if (len(cmd.Args) == 0) {
+		wd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("pwd: %w", err)
+		}
+		path = wd
+	} else {
+		path = cmd.Args[0]
+	}
+	entries, err := os.ReadDir(regexp.QuoteMeta(path))
+	if err != nil {
+		return nil, fmt.Errorf("ls: %w", err)
+	}
+
+	for _, entry := range entries {
+		buffer.WriteString(entry.Name() + "\n")
+	}
+
+	return buffer, nil
 }
