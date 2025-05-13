@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-type commands map[string]func(parseline.Command, *bytes.Buffer, *Executor) (*bytes.Buffer, error)
+type commands map[string]func(parseline.Command, *bytes.Buffer) (*bytes.Buffer, error)
 
 func newCommands() commands {
 	cmds := make(commands)
@@ -29,8 +29,8 @@ func newCommands() commands {
 	cmds["pwd"] = pwd
 	cmds["wc"] = wc
 	cmds["grep"] = grep
-	cmds["cd"] = cd	cmds["ls"] = ls
-
+	cmds["cd"] = cd
+	cmds["ls"] = ls
 
 	return cmds
 }
@@ -38,7 +38,7 @@ func newCommands() commands {
 //Here you need implement a command with the following signature:
 // func name_command(parseline.Command, *bytes.Buffer) (*bytes.Buffer, error) {}
 
-func cat(cmd parseline.Command, b *bytes.Buffer, executor *Executor) (*bytes.Buffer, error) {
+func cat(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 	output := bytes.NewBuffer(nil)
 	if len(cmd.Args) == 0 {
 		if b != nil {
@@ -59,7 +59,7 @@ func cat(cmd parseline.Command, b *bytes.Buffer, executor *Executor) (*bytes.Buf
 	return output, nil
 }
 
-func echo(cmd parseline.Command, b *bytes.Buffer, executor *Executor) (*bytes.Buffer, error) {
+func echo(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 	if len(cmd.Args) == 0 {
 		return bytes.NewBufferString(""), nil
 	}
@@ -78,7 +78,7 @@ func echo(cmd parseline.Command, b *bytes.Buffer, executor *Executor) (*bytes.Bu
 	return b, nil
 }
 
-func exit(cmd parseline.Command, b *bytes.Buffer, executor *Executor) (*bytes.Buffer, error) {
+func exit(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 	code := 0
 	if len(cmd.Args) > 0 {
 		if c, err := strconv.Atoi(cmd.Args[0]); err == nil {
@@ -89,7 +89,7 @@ func exit(cmd parseline.Command, b *bytes.Buffer, executor *Executor) (*bytes.Bu
 	return nil, nil
 }
 
-func pwd(cmd parseline.Command, _ *bytes.Buffer, executor *Executor) (*bytes.Buffer, error) {
+func pwd(cmd parseline.Command, _ *bytes.Buffer) (*bytes.Buffer, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("pwd: %w", err)
@@ -98,7 +98,7 @@ func pwd(cmd parseline.Command, _ *bytes.Buffer, executor *Executor) (*bytes.Buf
 	return output, nil
 }
 
-func wc(cmd parseline.Command, b *bytes.Buffer, executor *Executor) (*bytes.Buffer, error) {
+func wc(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 	var input string
 	if len(cmd.Args) == 0 {
 		input = b.String()
@@ -119,7 +119,7 @@ func wc(cmd parseline.Command, b *bytes.Buffer, executor *Executor) (*bytes.Buff
 	return bytes.NewBufferString(result), nil
 }
 
-func grep(cmd parseline.Command, input *bytes.Buffer, executor *Executor) (*bytes.Buffer, error) {
+func grep(cmd parseline.Command, input *bytes.Buffer) (*bytes.Buffer, error) {
 	opts, err := parseArgs(cmd.Args)
 	if err != nil {
 		return nil, err
@@ -215,46 +215,34 @@ func processData(data []byte, re *regexp.Regexp, context int) *bytes.Buffer {
 	return &output
 }
 
-func cd(cmd parseline.Command, b *bytes.Buffer, executor *Executor) (*bytes.Buffer, error) {
+func cd(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 	var path string
-	if len(cmd.Args) == 0 {
+	if len(cmd.Args) == 1 {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
 			return nil, fmt.Errorf("cd: cannot get home directory: %w", err)
 		}
 		path = homeDir
 	} else {
-		path = cmd.Args[0]
+		path, _ = filepath.Abs(filepath.Join(cmd.Args[1], cmd.Args[0]))
 	}
 
-	absPath, err := filepath.Abs(filepath.Join(executor.cwd, path))
-	if err != nil {
-		return nil, fmt.Errorf("cd: cannot resolve path: %w", err)
-	}
-
-	info, err := os.Stat(absPath)
+	info, err := os.Stat(path)
 	if err != nil || !info.IsDir() {
 		return nil, fmt.Errorf("cd: %s: not a directory", path)
 	}
 
-	executor.cwd = absPath
+	b.WriteString(path)
 	return b, nil
 }
 
-
 // Takes first provided argument as path to a directory and lists all files in it.
 func ls(cmd parseline.Command, buffer *bytes.Buffer) (*bytes.Buffer, error) {
-	var path string
-	if (len(cmd.Args) == 0) {
-		wd, err := os.Getwd()
-		if err != nil {
-			return nil, fmt.Errorf("pwd: %w", err)
-		}
-		path = wd
-	} else {
-		path = cmd.Args[0]
+	path := cmd.Args[0]
+	if len(cmd.Args) == 2 {
+		path, _ = filepath.Abs(filepath.Join(cmd.Args[1], cmd.Args[0]))
 	}
-	entries, err := os.ReadDir(regexp.QuoteMeta(path))
+	entries, err := os.ReadDir(path)
 	if err != nil {
 		return nil, fmt.Errorf("ls: %w", err)
 	}

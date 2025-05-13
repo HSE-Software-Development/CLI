@@ -59,8 +59,18 @@ type grepOptions struct {
 }
 
 func (executor *Executor) execute(command parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
+	var result *bytes.Buffer
+	var res_error error
 	if cmd, ok := executor.cmds[command.Name]; ok {
-		return cmd(command, b, executor)
+		if command.Name == "ls" || command.Name == "cd" {
+			command.Args = append(command.Args, executor.cwd)
+		}
+		result, res_error = cmd(command, b)
+		if command.Name == "cd" {
+			executor.cwd = result.String()
+			return &bytes.Buffer{}, res_error
+		}
+		return result, res_error
 	} else if strings.ContainsRune(command.Name, '=') {
 		split := strings.Split(command.Name, "=")
 		if len(split) != 2 {
