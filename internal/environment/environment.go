@@ -7,7 +7,6 @@ import (
 
 type Env map[string]string
 
-
 // Constructor of environment
 func New() Env {
 	env := Env{}
@@ -18,7 +17,7 @@ func New() Env {
 		cmd := os.Getenv(v)
 		env[v] = string(cmd)
 	}
-	
+
 	return env
 }
 
@@ -33,6 +32,7 @@ func (env Env) Reset() {
 		env[v] = string(cmd)
 	}
 }
+
 // Set a new variable
 func (env Env) Set(variable, value string) {
 	env[variable] = value

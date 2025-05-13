@@ -1,9 +1,13 @@
 package executor
 
 import (
+	"CLI/internal/environment"
 	"CLI/internal/parseline"
 	"bytes"
 	"os"
+	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -284,3 +288,135 @@ func TestGrepInvalidRegex(t *testing.T) {
 	}
 }
 
+func TestLsEmpty(t *testing.T) {
+	tempDir := t.TempDir()
+
+	cmd := parseline.Command{
+		Name: "ls",
+		Args: []string{tempDir},
+	}
+	var testInput []byte
+	input := bytes.NewBuffer(testInput)
+	expected := ``
+
+	output, err := ls(cmd, input)
+	if err != nil {
+		t.Fatalf("ls failed: %v", err)
+	}
+	if output.String() != expected {
+		t.Errorf("Expected:\n%s\nGot:\n%s", expected, output.String())
+	}
+}
+
+func TestLsNonEmpty(t *testing.T) {
+	tempDir := t.TempDir()
+	var filePaths []string
+	for i := 0; i < 5; i++ {
+		file, err := os.CreateTemp(tempDir, "testfile-*.tmp")
+		if err != nil {
+			t.Fatalf("Failed to create temporary file: %v", err)
+		}
+		defer file.Close()
+		filePaths = append(filePaths, filepath.Base(file.Name()))
+	}
+
+	cmd := parseline.Command{
+		Name: "ls",
+		Args: []string{tempDir},
+	}
+	var testInput []byte
+	input := bytes.NewBuffer(testInput)
+	slices.Sort(filePaths)
+	expected := strings.Join(filePaths, "\n") + "\n"
+
+	output, err := ls(cmd, input)
+	if err != nil {
+		t.Fatalf("ls failed: %v", err)
+	}
+	if output.String() != expected {
+		t.Errorf("Expected:\n%s\nGot:\n%s", expected, output.String())
+	}
+}
+
+func TestLsCurrentDir(t *testing.T) {
+	cmd := parseline.Command{
+		Name: "ls",
+	}
+	var testInput []byte
+	input := bytes.NewBuffer(testInput)
+
+	arg, _ := os.Getwd()
+	cmd.Args = append(cmd.Args, arg)
+	output, err := ls(cmd, input)
+	if err != nil {
+		t.Fatalf("ls failed: %v", err)
+	}
+	output_tokens := strings.Split(output.String(), "\n")
+	t.Log(output_tokens)
+	if !slices.Contains(output_tokens, "commands_test.go") {
+		t.Errorf("ls without argument does not work")
+	}
+}
+func TestCdCasualUsage(t *testing.T) {
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "subdir")
+	if err := os.Mkdir(subDir, 0755); err != nil {
+		t.Fatalf("failed to create subdir: %v", err)
+	}
+
+	env := environment.New()
+	exec := New(env)
+	exec.cwd = tmpDir
+
+	if exec.cwd != tmpDir {
+		t.Fatalf("expected cwd to be %s, got %s", tmpDir, exec.cwd)
+	}
+
+	cmd := parseline.Command{Name: "cd", Args: []string{"subdir"}}
+	arg := tmpDir
+	cmd.Args = append(cmd.Args, arg)
+	res, err := cd(cmd, &bytes.Buffer{})
+	if err != nil {
+		t.Fatalf("cd command failed: %v", err)
+	}
+
+	if res.String() != subDir {
+		t.Errorf("expected cwd to be %s after cd, got %s", subDir, res.String())
+	}
+}
+
+func TestCdToHome(t *testing.T) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("can't test home dir; os.UserHomeDir() failed")
+	}
+
+	env := environment.New()
+	exec := New(env)
+	exec.cwd = "/"
+
+	cmd := parseline.Command{Name: "cd"} // no args
+	arg := homeDir
+	cmd.Args = append(cmd.Args, arg)
+	res, err := cd(cmd, &bytes.Buffer{})
+	if err != nil {
+		t.Fatalf("cd to home failed: %v", err)
+	}
+	if res.String() != homeDir {
+		t.Errorf("expected home dir %q, got %q", homeDir, exec.cwd)
+	}
+}
+
+func TestCdToInvalidPath(t *testing.T) {
+	env := environment.New()
+	exec := New(env)
+	exec.cwd = t.TempDir()
+
+	cmd := parseline.Command{Name: "cd", Args: []string{"not-a-dir"}}
+	arg := t.TempDir()
+	cmd.Args = append(cmd.Args, arg)
+	_, err := cd(cmd, &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("expected error when cd into nonexistent dir, got none")
+	}
+}
