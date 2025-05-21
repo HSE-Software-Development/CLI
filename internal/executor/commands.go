@@ -40,7 +40,7 @@ func newCommands() commands {
 
 func cat(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 	output := bytes.NewBuffer(nil)
-	if len(cmd.Args) == 0 {
+	if len(cmd.Args) == 1 {
 		if b != nil {
 			_, err := output.Write(b.Bytes())
 			return output, err
@@ -48,8 +48,12 @@ func cat(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 		return nil, errors.New("no input provided")
 	}
 
-	for _, filename := range cmd.Args {
-		data, err := os.ReadFile(filename)
+	for _, filename := range cmd.Args[1:] {
+		abs_path, _ := filepath.Abs(filepath.Join(cmd.Args[0], filename)) // getting current directory path + filename
+		data, err := os.ReadFile(abs_path)
+		if err != nil {
+			data, err = os.ReadFile(filename)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("cat: %w", err)
 		}
@@ -90,7 +94,8 @@ func exit(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 }
 
 func pwd(cmd parseline.Command, _ *bytes.Buffer) (*bytes.Buffer, error) {
-	dir, err := os.Getwd()
+	var dir string
+	dir, err := filepath.Abs(cmd.Args[0])
 	if err != nil {
 		return nil, fmt.Errorf("pwd: %w", err)
 	}
@@ -100,10 +105,11 @@ func pwd(cmd parseline.Command, _ *bytes.Buffer) (*bytes.Buffer, error) {
 
 func wc(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 	var input string
-	if len(cmd.Args) == 0 {
+	if len(cmd.Args) == 1 {
 		input = b.String()
-	} else if len(cmd.Args) > 0 {
-		data, err := os.ReadFile(cmd.Args[0])
+	} else if len(cmd.Args) > 1 {
+		abs_path, _ := filepath.Abs(filepath.Join(cmd.Args[0], cmd.Args[1])) // getting current directory path + filename
+		data, err := os.ReadFile(abs_path)
 		if err != nil {
 			return nil, fmt.Errorf("wc: %w", err)
 		}
@@ -224,7 +230,7 @@ func cd(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 		}
 		path = homeDir
 	} else {
-		path, _ = filepath.Abs(filepath.Join(cmd.Args[1], cmd.Args[0]))
+		path, _ = filepath.Abs(filepath.Join(cmd.Args[0], cmd.Args[1]))
 	}
 
 	info, err := os.Stat(path)
@@ -240,7 +246,7 @@ func cd(cmd parseline.Command, b *bytes.Buffer) (*bytes.Buffer, error) {
 func ls(cmd parseline.Command, buffer *bytes.Buffer) (*bytes.Buffer, error) {
 	path := cmd.Args[0]
 	if len(cmd.Args) == 2 {
-		path, _ = filepath.Abs(filepath.Join(cmd.Args[1], cmd.Args[0]))
+		path, _ = filepath.Abs(filepath.Join(cmd.Args[0], cmd.Args[1])) // getting correct path
 	}
 	entries, err := os.ReadDir(path)
 	if err != nil {

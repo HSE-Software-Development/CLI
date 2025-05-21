@@ -62,11 +62,14 @@ func (executor *Executor) execute(command parseline.Command, b *bytes.Buffer) (*
 	var result *bytes.Buffer
 	var res_error error
 	if cmd, ok := executor.cmds[command.Name]; ok {
-		if command.Name == "ls" || command.Name == "cd" {
-			command.Args = append(command.Args, executor.cwd)
+		// Adding current dir path as first argument for commands that relies in current pwd
+		if command.Name == "ls" || command.Name == "cd" ||
+			command.Name == "pwd" || command.Name == "cat" ||
+			command.Name == "wc" {
+			command.Args = append([]string{executor.cwd}, command.Args...)
 		}
 		result, res_error = cmd(command, b)
-		if command.Name == "cd" {
+		if command.Name == "cd" && result != nil {
 			executor.env.Set("OLD_PWD", executor.cwd)
 			executor.cwd = result.String()
 			executor.env.Set("PWD", executor.cwd)

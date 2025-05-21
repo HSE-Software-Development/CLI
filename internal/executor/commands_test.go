@@ -12,7 +12,10 @@ import (
 )
 
 func TestCat(t *testing.T) {
-	tmpfile, err := os.CreateTemp("", "testfile")
+	env := environment.New()
+	exec := New(env)
+	exec.cwd = t.TempDir()
+	tmpfile, err := os.CreateTemp(exec.cwd, "testfile")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,14 +31,14 @@ func TestCat(t *testing.T) {
 	}{
 		{
 			name:    "Read file",
-			cmd:     parseline.Command{Name: "cat", Args: []string{tmpfile.Name()}},
+			cmd:     parseline.Command{Name: "cat", Args: []string{"", tmpfile.Name()}},
 			input:   nil,
 			want:    "test data\n",
 			wantErr: false,
 		},
 		{
 			name:    "No file",
-			cmd:     parseline.Command{Name: "cat", Args: []string{"nonexistent.txt"}},
+			cmd:     parseline.Command{Name: "cat", Args: []string{"nonexistent.txt", exec.cwd}},
 			input:   nil,
 			want:    "",
 			wantErr: true,
@@ -102,8 +105,12 @@ func TestEcho(t *testing.T) {
 }
 
 func TestPwd(t *testing.T) {
-	want, _ := os.Getwd()
+	env := environment.New()
+	exec := New(env)
+	exec.cwd = t.TempDir()
+	want := exec.cwd
 	cmd := parseline.Command{Name: "pwd", Args: nil}
+	cmd.Args = append(cmd.Args, exec.cwd)
 	got, err := pwd(cmd, nil)
 	if err != nil {
 		t.Errorf("pwd() error = %v", err)
@@ -114,6 +121,10 @@ func TestPwd(t *testing.T) {
 }
 
 func TestWc(t *testing.T) {
+	env := environment.New()
+	exec := New(env)
+	exec.cwd = t.TempDir()
+
 	tests := []struct {
 		name    string
 		cmd     parseline.Command
@@ -139,6 +150,7 @@ func TestWc(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tt.cmd.Args = append(tt.cmd.Args, exec.cwd)
 			got, err := wc(tt.cmd, tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("wc() error = %v, wantErr %v", err, tt.wantErr)
@@ -346,7 +358,7 @@ func TestLsCurrentDir(t *testing.T) {
 	input := bytes.NewBuffer(testInput)
 
 	arg, _ := os.Getwd()
-	cmd.Args = append(cmd.Args, arg)
+	cmd.Args = append([]string{arg}, cmd.Args...)
 	output, err := ls(cmd, input)
 	if err != nil {
 		t.Fatalf("ls failed: %v", err)
@@ -374,7 +386,7 @@ func TestCdCasualUsage(t *testing.T) {
 
 	cmd := parseline.Command{Name: "cd", Args: []string{"subdir"}}
 	arg := tmpDir
-	cmd.Args = append(cmd.Args, arg)
+	cmd.Args = append([]string{arg}, cmd.Args...)
 	res, err := cd(cmd, &bytes.Buffer{})
 	if err != nil {
 		t.Fatalf("cd command failed: %v", err)
